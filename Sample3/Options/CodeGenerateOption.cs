@@ -46,5 +46,20 @@ namespace Sample03.Options
         /// </summary>
         public string ServicesNameSpace { get; set; }
 
+        /// <summary>
+        /// DbHelper命名空间
+        /// </summary>
+        public string DbHelperNameSpace { get; set; }
+
+        /// <summary>
+        /// Options命名空间
+        /// </summary>
+        public string OptionsNameSpace { get; set; }
+
+        /// <summary>
+        /// BaseRepository命名空间
+        /// </summary>
+        public string BaseRepositoryNameSpace { get; set; }
+
     }
 }

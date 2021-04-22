@@ -1,6 +1,9 @@
 ﻿using Google.Protobuf.WellKnownTypes;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Options;
+using MySqlX.XDevAPI.Relational;
+using Sample03.DbHelper;
 using Sample03.Extensions;
 using Sample03.Model;
 using Sample03.Options;
@@ -8,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
 
@@ -20,7 +24,7 @@ namespace Sample03.CodeGenerator
     {
         private readonly string Delimiter = "\\";//windows的分隔符
 
-        private static CodeGenerateOption _options;
+        private static CodeGenerateOption _options;//代码生成选项
 
         /// <summary>
         /// 构造函数
@@ -40,6 +44,35 @@ namespace Sample03.CodeGenerator
         }
 
         /// <summary>
+        /// 根据数据库连接字符串生成对应模板代码文件
+        /// </summary>
+        /// <param name="isCoveredExsited"></param>
+        public void GenerateTemplateCodesFromDatabase(bool isCoveredExsited = true)
+        {
+            DatabaseType dbType = ConnectionFactory.GetDataBaseType(_options.DbType);
+            List<DbTable> tables = new List<DbTable>();
+            using (var dbConnection = ConnectionFactory.CreateConnection(dbType, _options.ConnectionString))
+            {
+                tables = dbConnection.GetCurrentDatabaseTableList(dbType);
+            }
+            if (tables.Count > 0)
+            {
+                foreach (var table in tables)
+                {
+                    GenerateEntity(table, isCoveredExsited);
+                    if (table.Columns.Any(f => f.IsPrimaryKey)) 
+                    {
+                        var pkTypeName = table.Columns.FirstOrDefault(k => k.IsPrimaryKey).CSharpType;
+                        GenerateIRepository(table, pkTypeName, isCoveredExsited);
+                        GenerateRepository(table, pkTypeName, isCoveredExsited);
+                    }
+                    GenerateIServices(table, isCoveredExsited);
+                    GenerateServices(table, isCoveredExsited);
+                }
+            }
+        }
+
+        /// <summary>
         /// 生成实体代码
         /// </summary>
         /// <param name="table">表名</param>
@@ -53,7 +86,139 @@ namespace Sample03.CodeGenerator
                 sb.AppendLine(tmp);
             }
             GenerateModelPath(table, out string path, out string pathP);
-            //var content=
+
+            var content = ReadTemplate("ModelTemplate.txt");
+            content = content.Replace("{Comment}", table.TableComment)
+                             .Replace("{Author}", _options.Author)
+                             .Replace("{GeneratorTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                             .Replace("{ModelsNamespace}", _options.ModelsNameSpace)
+                             .Replace("{ModelName}", table.TableName)
+                             .Replace("{ModelProperties}", sb.ToString());
+            WriteAndSave(path, content);
+
+            #region 部分类，用来扩展属性
+
+            var contentP = ReadTemplate("ModelTemplate.txt");
+            contentP = contentP.Replace("{Comment}", table.TableComment)
+                             .Replace("{Author}", _options.Author)
+                             .Replace("{GeneratorTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                             .Replace("{ModelsNamespace}", _options.ModelsNameSpace)
+                             .Replace("{ModelName}", table.TableName)
+                             .Replace("{ModelProperties}", "");
+            WriteAndSave(pathP, contentP);
+
+            #endregion
+        }
+
+        /// <summary>
+        /// 生成IService层代码文件
+        /// </summary>
+        /// <param name="table">表名</param>
+        /// <param name="isCoveredExsited">是否覆盖</param>
+        private void GenerateIServices(DbTable table, bool isCoveredExsited = true)
+        {
+            var iServicePath = _options.OutputPath + Delimiter + "IServices";
+            if (!Directory.Exists(iServicePath))
+            {
+                Directory.CreateDirectory(iServicePath);
+            }
+            var fullPath = iServicePath + Delimiter + "I" + table.TableName + "Service.cs";
+            if (File.Exists(fullPath) && !isCoveredExsited)
+                return;
+            var content = ReadTemplate("IServicesTemplate.txt");
+            content = content.Replace("{Comment}", table.TableComment)
+                           .Replace("{Author}", _options.Author)
+                           .Replace("{GeneratorTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                           .Replace("{IServicesNamespace}", _options.IServicesNameSpace)
+                           .Replace("{ModelName}", table.TableName);
+            WriteAndSave(fullPath, content);
+        }
+
+        /// <summary>
+        /// 生成Service层代码
+        /// </summary>
+        /// <param name="table">表名</param>
+        /// <param name="isCoveredExsited">是否覆盖</param>
+        private void GenerateServices(DbTable table, bool isCoveredExsited = true)
+        {
+            var servicePath = _options.OutputPath + Delimiter + "Services";
+            if (!Directory.Exists(servicePath))
+            {
+                Directory.CreateDirectory(servicePath);
+            }
+            var fullPath = servicePath + Delimiter + "Service.cs";
+            if (File.Exists(fullPath) && !isCoveredExsited)
+                return;
+            var content = ReadTemplate("ServicesTemplate.txt");
+            content = content.Replace("{Comment}", table.TableComment)
+                         .Replace("{Author}", _options.Author)
+                         .Replace("{GeneratorTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                         .Replace("{ServicesNamespace}", _options.ServicesNameSpace)
+                         .Replace("{ModelName}", table.TableName)
+                         .Replace("{IRepositoryNamespace}", _options.IRepositoryNameSpace)
+                         .Replace("{IServicesNamespace}", _options.IServicesNameSpace);
+            WriteAndSave(fullPath, content);
+        }
+
+        /// <summary>
+        /// 生成IRepository层代码
+        /// </summary>
+        /// <param name="table">表名</param>
+        /// <param name="keyTypeName">主键类型名</param>
+        /// <param name="isCoveredExsited">是否覆盖</param>
+        private void GenerateIRepository(DbTable table, string keyTypeName, bool isCoveredExsited = true)
+        {
+            var iRepositoryPath = _options.OutputPath + Delimiter + "IRepository";
+            if (!Directory.Exists(iRepositoryPath))
+            {
+                Directory.CreateDirectory(iRepositoryPath);
+            }
+            var fullPath = iRepositoryPath + Delimiter + "I" + table.TableName + "Repository.cs";
+            if (File.Exists(fullPath) && !isCoveredExsited)
+                return;
+            var content = ReadTemplate("IRepositoryTemplate.txt");
+            content = content.Replace("{Comment}", table.TableComment)
+                         .Replace("{Author}", _options.Author)
+                         .Replace("{GeneratorTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                         .Replace("{IRepositoryNamespace}", _options.IRepositoryNameSpace)
+                         .Replace("{ModelName}", table.TableName)
+                         .Replace("{RepositoryNamespace}", _options.RepositoryNameSpace)
+                         .Replace("{ModelsNamespace}", _options.ModelsNameSpace)
+                         .Replace("{KeyTypeName}", keyTypeName);
+            WriteAndSave(fullPath, content);
+        }
+
+        /// <summary>
+        /// 生成Repository层代码
+        /// </summary>
+        /// <param name="table">表名</param>
+        /// <param name="keyTypeName">主键类型名</param>
+        /// <param name="isCoveredExsited">是否覆盖</param>
+        private void GenerateRepository(DbTable table, string keyTypeName, bool isCoveredExsited = true)
+        {
+            var repositoryPath = _options.OutputPath + Delimiter + "Repository";
+            if (!Directory.Exists(repositoryPath))
+            {
+                Directory.CreateDirectory(repositoryPath);
+            }
+            var fullPath = repositoryPath + Delimiter + table.TableName + "Repository.cs";
+            if (File.Exists(fullPath) && !isCoveredExsited)
+                return;
+            var content = ReadTemplate("RepositoryTemplate.txt");
+            content = content.Replace("{Comment}", table.TableComment)
+                         .Replace("{Author}", _options.Author)
+                         .Replace("{GeneratorTime}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"))
+                         .Replace("{RepositoryNamespace}", _options.RepositoryNameSpace)
+                         .Replace("{ModelName}", table.TableName)
+                         .Replace("{DbHelperNameSpace}", _options.DbHelperNameSpace)
+                         .Replace("{OptionsNameSpace}", _options.OptionsNameSpace)
+                         .Replace("{BaseRepositoryNameSpace}", _options.BaseRepositoryNameSpace)
+                         .Replace("{RepositoryNamespace}", _options.RepositoryNameSpace)
+                         .Replace("{ModelsNamespace}", _options.ModelsNameSpace)
+                         .Replace("{KeyTypeName}", keyTypeName);
+
+            WriteAndSave(fullPath, content);
+
         }
 
         /// <summary>
@@ -74,7 +239,7 @@ namespace Sample03.CodeGenerator
                 sb.AppendLine("\t\t[Key]");
                 sb.AppendLine($"\t\tpublic {column.CSharpType} Id " + "{get;set;}");
             }
-            else 
+            else
             {
                 if (!column.IsNullable)
                 {
@@ -86,11 +251,11 @@ namespace Sample03.CodeGenerator
                 }
                 var colType = column.CSharpType;
                 var type = System.Type.GetType(colType);//获取Type
-                if (column.IsNullable&& type.IsNullType())//判断列是否可空&&属性对应的c#类型是可空类型
+                if (column.IsNullable && type.IsNullType())//判断列是否可空&&属性对应的c#类型是可空类型
                 {
                     colType += "?";
                 }
-                sb.AppendLine($"\t\tpublic {colType} {column.ColName}"+"{get;set;}");
+                sb.AppendLine($"\t\tpublic {colType} {column.ColName}" + "{get;set;}");
             }
             return sb.ToString();
         }
@@ -120,7 +285,7 @@ namespace Sample03.CodeGenerator
             fullPath.Append(table.TableName);
             fullPath.Append(".cs");
             pathP = fullPath.ToString();
-            path = fullPath.Replace("Partial"+Delimiter,"").ToString();
+            path = fullPath.Replace("Partial" + Delimiter, "").ToString();
         }
 
         /// <summary>
@@ -144,7 +309,25 @@ namespace Sample03.CodeGenerator
                 }
             }
             return text;
+        }
 
+        /// <summary>
+        /// 写入文件
+        /// </summary>
+        /// <param name="filePath">文件路径</param>
+        /// <param name="content">文件内容</param>
+        private static void WriteAndSave(string filePath, string content)
+        {
+            using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
+            {
+                using (var sw = new StreamWriter(fs))
+                {
+                    sw.Write(content);
+                    sw.Flush();
+                    sw.Close();
+                    fs.Close();
+                }
+            }
         }
 
     }
