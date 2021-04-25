@@ -1,31 +1,16 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Sample03.CodeGenerator;
+using Sample03.CodeGenerate;
 using Sample03.Model;
 using Sample03.Options;
 using System;
 
-namespace Sample3
+namespace Sample04
 {
     class Program
     {
         static void Main(string[] args)
         {
-            //using (var dbcontext = new MyDbContext())
-            //{
-            //    //dbcontext.Content.Add(new Model.Content() 
-            //    //{
-            //    //    title="efcore title1",
-            //    //    content="efcore content1"
-            //    //});
-
-            //    //dbcontext.SaveChanges();
-
-            //    foreach (var item in dbcontext.Content)
-            //    {
-            //        Console.WriteLine($"{item.id}-{item.title}-{item.content}");
-            //    }
-            //}
             var serviceProvider = Common.BuildService();
             var codeGenerator = serviceProvider.GetRequiredService<CodeGenerator>();
             codeGenerator.GenerateTemplateCodesFromDatabase(true);

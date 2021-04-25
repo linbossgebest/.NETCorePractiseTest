@@ -1,11 +1,11 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Sample03.CodeGenerator;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Sample03.Model;
 using Sample03.Options;
 using System;
+using Microsoft.Extensions.Configuration;
+using Sample03.CodeGenerate;
 
-namespace Sample3
+namespace Sample03
 {
     class Program
     {
@@ -40,21 +40,22 @@ namespace Sample3
         public static IServiceProvider BuildService()
         {
             var services = new ServiceCollection();
-            services.Configure<CodeGenerateOption>(options =>
-            {
-                options.ConnectionString = "Data Source=127.0.0.1;User ID=root;Password=root;Initial Catalog=cms;Pooling=true;Max Pool Size=100;Charset=utf8";
-                options.DbType = DatabaseType.MySQL.ToString();
-                options.Author = "linyong";
-                options.OutputPath = "E:\\myProject\\.netcore\\GenerateCode";
-                options.ModelsNameSpace = "LinTest.Cms.Models";
-                options.IRepositoryNameSpace = "LinTest.Cms.IRepository";
-                options.RepositoryNameSpace = "LinTest.Cms.Repository";
-                options.ServicesNameSpace = "LinTest.Cms.IServices";
-                options.IServicesNameSpace = "LinTest.Cms.Services";
-                options.DbHelperNameSpace = "LinTest.Cms.DbHelperNameSpace";
-                options.OptionsNameSpace = "LinTest.Cms.OptionsNameSpace";
-                options.BaseRepositoryNameSpace = "LinTest.Cms.BaseRepositoryNameSpace";
-            });
+            //services.Configure<CodeGenerateOption>(options =>
+            //{
+            //    options.ConnectionString = "Data Source=127.0.0.1;User ID=root;Password=root;Initial Catalog=cms;Pooling=true;Max Pool Size=100;Charset=utf8";
+            //    options.DbType = DatabaseType.MySQL.ToString();
+            //    options.Author = "linyong";
+            //    options.OutputPath = "E:\\myProject\\.netcore\\GenerateCode";
+            //    options.ModelsNameSpace = "LinTest.Cms.Models";
+            //    options.IRepositoryNameSpace = "LinTest.Cms.IRepository";
+            //    options.RepositoryNameSpace = "LinTest.Cms.Repository";
+            //    options.IServicesNameSpace = "LinTest.Cms.IServices";
+            //    options.ServicesNameSpace = "LinTest.Cms.Services";
+            //    options.DbHelperNameSpace = "LinTest.Cms.DbHelperNameSpace";
+            //    options.OptionsNameSpace = "LinTest.Cms.OptionsNameSpace";
+            //    options.BaseRepositoryNameSpace = "LinTest.Cms.BaseRepositoryNameSpace";
+            //});
+            services.Configure<CodeGenerateOption>("LinOptions", options =>GetConfiguration().GetSection("Options"));
             services.Configure<DbOption>("LinCms", options => GetConfiguration().GetSection("DbOption"));
             services.AddScoped<CodeGenerator>();
             return services.BuildServiceProvider();//构建服务提供程序

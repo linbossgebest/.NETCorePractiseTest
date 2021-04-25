@@ -1,46 +1,22 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Google.Protobuf.WellKnownTypes;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Sample03.CodeGenerator;
 using Sample03.Model;
 using Sample03.Options;
 using System;
+using System.Collections.Generic;
+using System.Security.Authentication.ExtendedProtection;
+using System.Text;
 
-namespace Sample3
+namespace MyTest
 {
-    class Program
-    {
-        static void Main(string[] args)
-        {
-            //using (var dbcontext = new MyDbContext())
-            //{
-            //    //dbcontext.Content.Add(new Model.Content() 
-            //    //{
-            //    //    title="efcore title1",
-            //    //    content="efcore content1"
-            //    //});
-
-            //    //dbcontext.SaveChanges();
-
-            //    foreach (var item in dbcontext.Content)
-            //    {
-            //        Console.WriteLine($"{item.id}-{item.title}-{item.content}");
-            //    }
-            //}
-            var serviceProvider = Common.BuildService();
-            var codeGenerator = serviceProvider.GetRequiredService<CodeGenerator>();
-            codeGenerator.GenerateTemplateCodesFromDatabase(true);
-
-            Console.WriteLine("代码生成完毕");
-            Console.ReadKey();
-        }
-    }
-
-    class Common
+    public class Common
     {
         public static IServiceProvider BuildService()
         {
             var services = new ServiceCollection();
-            services.Configure<CodeGenerateOption>(options =>
+            services.Configure<CodeGenerateOption>(options => 
             {
                 options.ConnectionString = "Data Source=127.0.0.1;User ID=root;Password=root;Initial Catalog=cms;Pooling=true;Max Pool Size=100;Charset=utf8";
                 options.DbType = DatabaseType.MySQL.ToString();

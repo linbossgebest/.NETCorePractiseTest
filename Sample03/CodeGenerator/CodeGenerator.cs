@@ -1,8 +1,5 @@
-﻿using Google.Protobuf.WellKnownTypes;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.EntityFrameworkCore.Internal;
+﻿using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.Options;
-using MySqlX.XDevAPI.Relational;
 using Sample03.DbHelper;
 using Sample03.Extensions;
 using Sample03.Model;
@@ -15,7 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace Sample03.CodeGenerator
+namespace Sample03.CodeGenerate
 {
     /// <summary>
     /// 代码生成器
